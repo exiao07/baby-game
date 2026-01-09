@@ -1,467 +1,1392 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Baby Tap Game</title>
+  <title>Baby Party Arcade</title>
   <style>
-    :root {
-      --bg: #0b1020;
-      --panel: rgba(255,255,255,0.10);
-      --panel2: rgba(255,255,255,0.14);
-      --text: rgba(255,255,255,0.92);
+    :root{
+      --bg0:#050717;
+      --panel:rgba(255,255,255,.10);
+      --panel2:rgba(255,255,255,.16);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.75);
+      --shadow: 0 18px 50px rgba(0,0,0,.45);
+      --r:22px;
+      --btn:14px;
+      --safeTop: env(safe-area-inset-top, 0px);
+      --safeBottom: env(safe-area-inset-bottom, 0px);
     }
-
-    html, body {
-      height: 100%;
-      margin: 0;
-      background: radial-gradient(circle at 20% 10%, #1b2a6b 0%, var(--bg) 45%, #050610 100%);
+    * { box-sizing:border-box; }
+    html,body{
+      height:100%;
+      margin:0;
+      background: radial-gradient(circle at 30% 10%, #21308f 0%, var(--bg0) 50%, #01010a 100%);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color: var(--text);
-      overscroll-behavior: none;
-      touch-action: manipulation;
-      user-select: none;
+      color:var(--text);
+      overscroll-behavior:none;
+      touch-action:manipulation;
+      user-select:none;
+    }
+    .app{
+      height:100%;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      gap:12px;
+      padding: calc(12px + var(--safeTop)) 12px calc(12px + var(--safeBottom));
+    }
+    header, footer{
+      background:var(--panel);
+      border-radius:var(--r);
+      padding:10px 12px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.22);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 170px;
+    }
+    .title h1{
+      font-size:16px;
+      margin:0;
+      font-weight:850;
+      letter-spacing:.3px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .title .sub{
+      font-size:12px;
+      opacity:.85;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .hud{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    button, .pill{
+      border:0;
+      border-radius:16px;
+      background:var(--panel2);
+      color:var(--text);
+      padding:10px 12px;
+      min-height:44px;
+      font-weight:800;
+      font-size:14px;
+      cursor:pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,.18);
+    }
+    button:active{ transform:scale(.98); }
+    .pill{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      font-weight:800;
+    }
+    .pill .k{ opacity:.8; font-weight:900; }
+    .pill .v{ font-variant-numeric: tabular-nums; }
+
+    .stage{
+      position:relative;
+      border-radius: 26px;
+      background: rgba(255,255,255,.06);
+      overflow:hidden;
+      box-shadow: var(--shadow);
     }
 
-    .wrap {
-      height: 100%;
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      gap: 12px;
-      padding: 12px;
-      box-sizing: border-box;
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
     }
 
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: var(--panel);
-      backdrop-filter: blur(6px);
+    /* Top overlay (mode buttons) */
+    .modebar{
+      position:absolute;
+      left:12px;
+      right:12px;
+      top:12px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      z-index:10;
+      pointer-events:auto;
+    }
+    .modebar button{
+      padding:10px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+    }
+    .modebar button.on{
+      outline: 3px solid rgba(255,255,255,.55);
+      background: rgba(255,255,255,.20);
     }
 
-    .title {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    .toast{
+      position:absolute;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%);
+      padding:14px 18px;
+      border-radius: 18px;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 60px rgba(0,0,0,.45);
+      font-weight: 900;
+      letter-spacing:.4px;
+      text-align:center;
+      z-index: 12;
+      opacity:0;
+      pointer-events:none;
     }
-    .title h1 {
-      font-size: 16px;
-      margin: 0;
-      letter-spacing: 0.3px;
-      font-weight: 700;
+    .toast.show{
+      opacity:1;
+      animation: toastPop 900ms ease-out forwards;
     }
-    .title .sub {
-      font-size: 12px;
-      opacity: 0.85;
-    }
-
-    .controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    button, .toggle {
-      border: 0;
-      border-radius: 14px;
-      background: var(--panel2);
-      color: var(--text);
-      padding: 10px 12px;
-      font-size: 14px;
-      font-weight: 650;
-      cursor: pointer;
-      min-height: 44px;
-    }
-    button:active { transform: scale(0.98); }
-
-    .toggle {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-    }
-    .toggle input {
-      width: 22px;
-      height: 22px;
-      accent-color: #7cf;
+    @keyframes toastPop{
+      0%{ transform:translate(-50%,-50%) scale(.9); }
+      20%{ transform:translate(-50%,-50%) scale(1.06); }
+      100%{ transform:translate(-50%,-50%) scale(1); opacity:0; }
     }
 
-    .stage {
-      position: relative;
+    /* Parent gate modal */
+    .modalWrap{
+      position:absolute;
+      inset:0;
+      background: rgba(0,0,0,.5);
+      display:none;
+      place-items:center;
+      z-index: 20;
+      padding: 18px;
+    }
+    .modalWrap.on{ display:grid; }
+    .modal{
+      width:min(560px, 100%);
       border-radius: 22px;
-      background: rgba(255,255,255,0.06);
-      overflow: hidden;
-      display: grid;
-      place-items: center;
+      background: rgba(255,255,255,.12);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 26px 80px rgba(0,0,0,.55);
+      padding: 14px;
+    }
+    .modal h2{
+      margin: 8px 8px 2px;
+      font-size: 16px;
+      font-weight: 900;
+    }
+    .modal p{
+      margin: 0 8px 10px;
+      font-size: 13px;
+      opacity:.85;
+      line-height:1.35;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      padding: 10px 8px;
+      border-top: 1px solid rgba(255,255,255,.12);
+      align-items:center;
+      justify-content:space-between;
+    }
+    .row label{
+      font-weight:850;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .row label small{ opacity:.75; font-weight:700; }
+    .row input[type="checkbox"]{
+      width:24px; height:24px;
+      accent-color:#8cf;
+    }
+    .row .btnrow{
+      display:flex;
+      gap:8px;
+      width:100%;
+      justify-content:flex-end;
+      padding-top: 4px;
     }
 
-    /* Big tappable shape */
-    .shape {
-      width: min(72vmin, 520px);
-      height: min(72vmin, 520px);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      filter: drop-shadow(0 18px 40px rgba(0,0,0,0.35));
-      transform: translateZ(0);
+    footer{
+      font-size:14px;
     }
+    .hint{ opacity:.85; }
+    .hint b{ opacity:1; }
 
-    .shape:focus-visible {
-      outline: 4px solid rgba(255,255,255,0.7);
-      outline-offset: 10px;
-      border-radius: 28px;
+    /* Fun background pulse for party mode */
+    .partyGlow{
+      position:absolute;
+      inset:-20%;
+      background: radial-gradient(circle at 20% 20%, rgba(255,80,180,.20) 0%, transparent 45%),
+                  radial-gradient(circle at 70% 30%, rgba(80,220,255,.20) 0%, transparent 50%),
+                  radial-gradient(circle at 40% 80%, rgba(255,240,120,.18) 0%, transparent 50%);
+      opacity:0;
+      transition: opacity 250ms ease;
+      pointer-events:none;
+      mix-blend-mode: screen;
     }
-
-    .label {
-      font-size: clamp(22px, 5vmin, 42px);
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      text-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    .partyGlow.on{
+      opacity:1;
+      animation: partyPulse 1.6s ease-in-out infinite;
     }
-
-    /* Variants */
-    .circle { border-radius: 50%; }
-    .square { border-radius: 18%; }
-    .triangle {
-      width: 0;
-      height: 0;
-      border-left: min(34vmin, 240px) solid transparent;
-      border-right: min(34vmin, 240px) solid transparent;
-      border-bottom: min(62vmin, 430px) solid #ff5aa5;
-      filter: drop-shadow(0 18px 40px rgba(0,0,0,0.35));
-      cursor: pointer;
-      position: relative;
-    }
-    .triangle .label {
-      position: absolute;
-      left: 50%;
-      top: 62%;
-      transform: translate(-50%, -50%);
-      white-space: nowrap;
-    }
-
-    /* Wiggle animation */
-    @keyframes wiggle {
-      0% { transform: scale(1) rotate(0deg); }
-      20% { transform: scale(1.03) rotate(-3deg); }
-      40% { transform: scale(1.05) rotate(3deg); }
-      60% { transform: scale(1.03) rotate(-2deg); }
-      80% { transform: scale(1.02) rotate(2deg); }
-      100% { transform: scale(1) rotate(0deg); }
-    }
-    .wiggle { animation: wiggle 420ms ease-out; }
-
-    /* Floating “pop” particles */
-    .pop {
-      position: absolute;
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      pointer-events: none;
-      opacity: 0.95;
-      animation: floatUp 700ms ease-out forwards;
-      filter: blur(0px);
-    }
-    @keyframes floatUp {
-      from { transform: translateY(0) scale(1); opacity: 1; }
-      to { transform: translateY(-90px) scale(0.6); opacity: 0; }
-    }
-
-    footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: var(--panel);
-      backdrop-filter: blur(6px);
-      font-size: 14px;
-    }
-    .score {
-      font-weight: 750;
-      letter-spacing: 0.3px;
-    }
-
-    /* Bubble mode mini shapes */
-    .bubble {
-      position: absolute;
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      font-weight: 800;
-      font-size: 22px;
-      color: rgba(255,255,255,0.95);
-      text-shadow: 0 6px 18px rgba(0,0,0,0.35);
-      cursor: pointer;
-      filter: drop-shadow(0 14px 24px rgba(0,0,0,0.35));
-      animation: drift 6s linear infinite;
-    }
-    @keyframes drift {
-      from { transform: translateY(0); }
-      to { transform: translateY(-28px); }
+    @keyframes partyPulse{
+      0%,100%{ transform:scale(1) rotate(0deg); }
+      50%{ transform:scale(1.06) rotate(2deg); }
     }
   </style>
 </head>
-
 <body>
-  <div class="wrap">
+  <div class="app">
     <header>
       <div class="title">
-        <h1>Tap the Big Shape</h1>
-        <div class="sub">Big targets • gentle sounds • baby-friendly</div>
+        <h1>Baby Party Arcade</h1>
+        <div class="sub" id="subtitle">Tap things → big rewards</div>
       </div>
 
-      <div class="controls">
-        <button id="changeBtn" aria-label="Change shape">Change</button>
-        <label class="toggle" aria-label="Toggle bubble mode">
-          <input id="bubbleToggle" type="checkbox" />
-          Bubble mode
-        </label>
+      <div class="hud">
+        <div class="pill"><span class="k">Taps</span><span class="v" id="taps">0</span></div>
+        <div class="pill"><span class="k">Streak</span><span class="v" id="streak">0</span></div>
+        <button id="partyBtn" aria-label="Toggle party mode">Party: Off</button>
+        <button id="parentBtn" aria-label="Open parent settings (hold)">Parent</button>
       </div>
     </header>
 
     <main class="stage" id="stage" aria-label="Game area">
-      <!-- Main shape gets injected here -->
+      <div class="partyGlow" id="partyGlow"></div>
+      <div class="modebar" id="modebar" aria-label="Game modes"></div>
+      <div class="toast" id="toast">WOW!</div>
+      <canvas id="c"></canvas>
+
+      <div class="modalWrap" id="modalWrap" aria-label="Parent settings">
+        <div class="modal">
+          <h2>Parent Settings</h2>
+          <p>Hold the Parent button for 3 seconds to open this. These settings keep the game gentle.</p>
+
+          <div class="row">
+            <label>
+              Sound
+              <small>Gentle tones + pops</small>
+            </label>
+            <input type="checkbox" id="optSound" checked />
+          </div>
+
+          <div class="row">
+            <label>
+              Speak words
+              <small>Says colors / animals (if supported)</small>
+            </label>
+            <input type="checkbox" id="optSpeak" />
+          </div>
+
+          <div class="row">
+            <label>
+              Big targets
+              <small>Makes objects easier to hit</small>
+            </label>
+            <input type="checkbox" id="optBig" checked />
+          </div>
+
+          <div class="row">
+            <label>
+              Motion
+              <small>Turn off extra movement</small>
+            </label>
+            <input type="checkbox" id="optMotion" checked />
+          </div>
+
+          <div class="row">
+            <label>
+              Auto switch modes
+              <small>Cycles games every 60s</small>
+            </label>
+            <input type="checkbox" id="optAuto" checked />
+          </div>
+
+          <div class="row">
+            <div class="btnrow">
+              <button id="resetBtn">Reset Score</button>
+              <button id="closeBtn">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
 
     <footer>
-      <div class="score">Taps: <span id="taps">0</span></div>
-      <div style="opacity:.85">Tip: tap anywhere — works with touch.</div>
+      <div class="hint" id="hint">Mode: <b>Pop Bubbles</b> — tap the bubbles!</div>
+      <div class="hint">Tip: on iPad → Share → <b>Add to Home Screen</b></div>
     </footer>
   </div>
 
   <script>
-    // ----- Simple baby game: big shapes + gentle tones -----
+    /***********************************************************************
+     * Baby Party Arcade
+     * - single file HTML
+     * - multiple mini games
+     * - big feedback, confetti, sounds, speech
+     * - parent settings gate
+     ************************************************************************/
 
+    // ---------- DOM ----------
     const stage = document.getElementById("stage");
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+
     const tapsEl = document.getElementById("taps");
-    const changeBtn = document.getElementById("changeBtn");
-    const bubbleToggle = document.getElementById("bubbleToggle");
+    const streakEl = document.getElementById("streak");
+    const hintEl = document.getElementById("hint");
+    const subtitleEl = document.getElementById("subtitle");
+
+    const modebar = document.getElementById("modebar");
+    const toast = document.getElementById("toast");
+
+    const partyBtn = document.getElementById("partyBtn");
+    const partyGlow = document.getElementById("partyGlow");
+
+    const parentBtn = document.getElementById("parentBtn");
+    const modalWrap = document.getElementById("modalWrap");
+    const closeBtn = document.getElementById("closeBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const optSound = document.getElementById("optSound");
+    const optSpeak = document.getElementById("optSpeak");
+    const optBig = document.getElementById("optBig");
+    const optMotion = document.getElementById("optMotion");
+    const optAuto = document.getElementById("optAuto");
+
+    // ---------- State ----------
+    let W = 0, H = 0, DPR = 1;
 
     let taps = 0;
-    let current = 0; // 0 circle, 1 square, 2 triangle
-    let audioCtx = null;
-    let bubbleTimer = null;
+    let streak = 0;
+    let lastTapTime = 0;
 
-    const palettes = [
-      ["#ff5aa5", "#ff9f43", "#ffee58", "#7cff6b", "#4dd6ff", "#a78bfa"],
-      ["#ff6b6b", "#ffd93d", "#6bcBef", "#6bff95", "#b388ff", "#ff8fab"],
+    let party = false;
+
+    // auto mode switching
+    let autoTimer = 0;
+    const AUTO_MS = 60000;
+    let lastAutoSwitch = performance.now();
+
+    // web audio
+    let audioCtx = null;
+    const canSpeak = "speechSynthesis" in window;
+
+    // user settings (persist)
+    const SETTINGS_KEY = "baby_party_arcade_settings_v1";
+
+    const settings = {
+      sound: true,
+      speak: false,
+      bigTargets: true,
+      motion: true,
+      autoSwitch: true,
+    };
+
+    // ---------- Utilities ----------
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+    function rand(min, max){ return Math.random() * (max - min) + min; }
+    function randi(min, max){ return Math.floor(rand(min, max + 1)); }
+    function pick(arr){ return arr[(Math.random() * arr.length) | 0]; }
+
+    function now(){ return performance.now(); }
+
+    function loadSettings(){
+      try{
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if(!raw) return;
+        const s = JSON.parse(raw);
+        Object.assign(settings, s);
+      }catch(_){}
+    }
+    function saveSettings(){
+      try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(_){}
+    }
+
+    function applySettingsToUI(){
+      optSound.checked = settings.sound;
+      optSpeak.checked = settings.speak;
+      optBig.checked = settings.bigTargets;
+      optMotion.checked = settings.motion;
+      optAuto.checked = settings.autoSwitch;
+    }
+
+    function updateSettingsFromUI(){
+      settings.sound = !!optSound.checked;
+      settings.speak = !!optSpeak.checked;
+      settings.bigTargets = !!optBig.checked;
+      settings.motion = !!optMotion.checked;
+      settings.autoSwitch = !!optAuto.checked;
+      saveSettings();
+    }
+
+    function showToast(text){
+      toast.textContent = text;
+      toast.classList.remove("show");
+      void toast.offsetWidth;
+      toast.classList.add("show");
+    }
+
+    // ---------- Color / words ----------
+    const COLOR_WORDS = [
+      { name:"Red",    hex:"#ff4b6e" },
+      { name:"Orange", hex:"#ff9a3c" },
+      { name:"Yellow", hex:"#ffe55c" },
+      { name:"Green",  hex:"#58ff96" },
+      { name:"Blue",   hex:"#4dd6ff" },
+      { name:"Purple", hex:"#a78bfa" },
+      { name:"Pink",   hex:"#ff62d1" },
+      { name:"Teal",   hex:"#56f0d2" },
     ];
 
-    function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-    function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    // Cute animal set (emoji avoids needing image files)
+    const ANIMALS = [
+      { word:"Dog",  emoji:"🐶" },
+      { word:"Cat",  emoji:"🐱" },
+      { word:"Cow",  emoji:"🐮" },
+      { word:"Duck", emoji:"🦆" },
+      { word:"Pig",  emoji:"🐷" },
+      { word:"Lion", emoji:"🦁" },
+      { word:"Frog", emoji:"🐸" },
+      { word:"Panda",emoji:"🐼" },
+      { word:"Bunny",emoji:"🐰" },
+      { word:"Bear", emoji:"🐻" },
+    ];
 
-    function ensureAudio() {
-      if (!audioCtx) {
+    // ---------- Audio ----------
+    function ensureAudio(){
+      if(!settings.sound) return null;
+      if(!audioCtx){
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
-      // iOS sometimes needs resume on user gesture
-      if (audioCtx.state === "suspended") audioCtx.resume();
+      if(audioCtx.state === "suspended") audioCtx.resume();
+      return audioCtx;
     }
 
-    function playTone() {
-      ensureAudio();
-      const now = audioCtx.currentTime;
+    function tone(freq, dur=0.22, gain=0.16, type="sine"){
+      const ac = ensureAudio();
+      if(!ac) return;
+      const t = ac.currentTime;
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = type;
+      o.frequency.value = freq;
 
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(gain, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
-      // Soft, happy notes (pentatonic-ish)
-      const freqs = [262, 294, 330, 392, 440, 523]; // C D E G A C
-      osc.frequency.value = rand(freqs);
-      osc.type = "sine";
-
-      // Gentle envelope (avoid harsh clicks)
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      osc.start(now);
-      osc.stop(now + 0.4);
+      o.connect(g);
+      g.connect(ac.destination);
+      o.start(t);
+      o.stop(t + dur + 0.03);
     }
 
-    function confettiPop(x, y) {
-      const colors = rand(palettes);
-      for (let i = 0; i < 10; i++) {
-        const p = document.createElement("div");
-        p.className = "pop";
-        p.style.left = `${x + randInt(-30, 30)}px`;
-        p.style.top  = `${y + randInt(-30, 30)}px`;
-        p.style.background = rand(colors);
-        p.style.width = `${randInt(14, 28)}px`;
-        p.style.height = p.style.width;
-        stage.appendChild(p);
-        setTimeout(() => p.remove(), 750);
+    function popSound(){
+      // a soft "pop" made by quick pitch drop + noise-ish triangle
+      const ac = ensureAudio();
+      if(!ac) return;
+      const t = ac.currentTime;
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = "triangle";
+      o.frequency.setValueAtTime(420, t);
+      o.frequency.exponentialRampToValueAtTime(120, t + 0.08);
+
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + 0.14);
+    }
+
+    function rewardChord(){
+      // tiny happy chord
+      const notes = [262, 330, 392, 523]; // C E G C
+      tone(notes[0], 0.28, 0.12, "sine");
+      setTimeout(()=>tone(notes[1], 0.28, 0.10, "sine"), 35);
+      setTimeout(()=>tone(notes[2], 0.28, 0.10, "sine"), 70);
+      setTimeout(()=>tone(notes[3], 0.35, 0.12, "sine"), 110);
+    }
+
+    // ---------- Speech ----------
+    let lastSpoken = 0;
+    function speak(text){
+      if(!settings.speak || !canSpeak) return;
+      const t = Date.now();
+      if(t - lastSpoken < 700) return; // avoid rapid spam
+      lastSpoken = t;
+
+      try{
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 0.95;
+        u.pitch = 1.1;
+        u.volume = 1.0;
+        window.speechSynthesis.speak(u);
+      }catch(_){}
+    }
+
+    // ---------- Particles ----------
+    const particles = [];
+    function spawnConfetti(x,y, n){
+      const count = n ?? (party ? 50 : 28);
+      for(let i=0;i<count;i++){
+        particles.push({
+          x, y,
+          vx: rand(-4.4, 4.4) * (party ? 1.35 : 1.0),
+          vy: rand(-8.0, -2.0) * (party ? 1.35 : 1.0),
+          g: rand(0.14, 0.26),
+          r: rand(4, 10) * (settings.bigTargets ? 1.2 : 1.0),
+          life: rand(40, 80),
+          rot: rand(0, Math.PI*2),
+          vr: rand(-0.22, 0.22),
+          color: pick(COLOR_WORDS).hex,
+          shape: pick(["rect","circle","tri"])
+        });
       }
     }
 
-    function incrementTaps() {
+    function spawnSparkleRing(x,y){
+      const count = party ? 22 : 14;
+      for(let i=0;i<count;i++){
+        const ang = (Math.PI*2) * (i / count);
+        particles.push({
+          x, y,
+          vx: Math.cos(ang) * rand(2.6, 6.0),
+          vy: Math.sin(ang) * rand(2.6, 6.0),
+          g: 0.06,
+          r: rand(2, 5),
+          life: rand(24, 44),
+          rot: 0,
+          vr: 0,
+          color: "rgba(255,255,255,.95)",
+          shape: "circle"
+        });
+      }
+    }
+
+    function stepParticles(){
+      for(let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.g;
+        p.rot += p.vr;
+        p.life -= 1;
+        if(p.life <= 0) particles.splice(i,1);
+      }
+    }
+
+    function drawParticles(){
+      for(const p of particles){
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = clamp(p.life / 80, 0, 1);
+
+        ctx.fillStyle = p.color;
+
+        if(p.shape === "circle"){
+          ctx.beginPath();
+          ctx.arc(0,0,p.r,0,Math.PI*2);
+          ctx.fill();
+        } else if(p.shape === "tri"){
+          ctx.beginPath();
+          ctx.moveTo(0,-p.r);
+          ctx.lineTo(p.r, p.r);
+          ctx.lineTo(-p.r, p.r);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          ctx.fillRect(-p.r, -p.r, p.r*2, p.r*2);
+        }
+        ctx.restore();
+      }
+    }
+
+    // ---------- Touch helpers ----------
+    function getPointerPos(e){
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      return {x,y};
+    }
+
+    // ---------- Mini-game framework ----------
+    const MODES = [];
+    let mode = null;
+
+    function setMode(id){
+      mode = MODES.find(m => m.id === id) || MODES[0];
+      for(const b of modebar.querySelectorAll("button")){
+        b.classList.toggle("on", b.dataset.mode === mode.id);
+      }
+      hintEl.innerHTML = `Mode: <b>${mode.name}</b> — ${mode.hint}`;
+      subtitleEl.textContent = mode.sub;
+      mode.reset();
+      showToast(mode.name.toUpperCase());
+      if(settings.sound) rewardChord();
+    }
+
+    function makeModeButton(m){
+      const b = document.createElement("button");
+      b.textContent = m.name;
+      b.dataset.mode = m.id;
+      b.addEventListener("click", () => setMode(m.id));
+      modebar.appendChild(b);
+    }
+
+    function addTapReward(x,y, label){
       taps++;
       tapsEl.textContent = String(taps);
-    }
 
-    function makeMainShape(kind) {
-      stage.querySelectorAll(".shape, .triangle").forEach(n => n.remove());
-
-      const colors = rand(palettes);
-      const color = rand(colors);
-
-      if (kind === 2) {
-        const tri = document.createElement("div");
-        tri.className = "triangle";
-        tri.tabIndex = 0;
-        tri.setAttribute("role", "button");
-        tri.setAttribute("aria-label", "Triangle shape");
-
-        const label = document.createElement("div");
-        label.className = "label";
-        label.textContent = "TAP!";
-        tri.appendChild(label);
-
-        tri.style.borderBottomColor = color;
-
-        tri.addEventListener("pointerdown", (e) => onTap(e, tri));
-        tri.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") onTap(e, tri);
-        });
-
-        stage.appendChild(tri);
-        return;
-      }
-
-      const div = document.createElement("div");
-      div.className = `shape ${kind === 0 ? "circle" : "square"}`;
-      div.tabIndex = 0;
-      div.setAttribute("role", "button");
-      div.setAttribute("aria-label", kind === 0 ? "Circle shape" : "Square shape");
-
-      div.style.background = color;
-
-      const label = document.createElement("div");
-      label.className = "label";
-      label.textContent = "TAP!";
-      div.appendChild(label);
-
-      div.addEventListener("pointerdown", (e) => onTap(e, div));
-      div.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") onTap(e, div);
-      });
-
-      stage.appendChild(div);
-    }
-
-    function onTap(e, el) {
-      // Prevent accidental scrolling on mobile
-      e.preventDefault?.();
-
-      incrementTaps();
-      playTone();
-
-      // wiggle
-      el.classList.remove("wiggle");
-      void el.offsetWidth; // restart animation
-      el.classList.add("wiggle");
-
-      const rect = stage.getBoundingClientRect();
-      const x = (e.clientX ?? (rect.left + rect.width / 2)) - rect.left;
-      const y = (e.clientY ?? (rect.top + rect.height / 2)) - rect.top;
-
-      confettiPop(x, y);
-
-      // Change to a new random color quickly
-      const colors = rand(palettes);
-      const newColor = rand(colors);
-
-      if (el.classList.contains("triangle")) {
-        el.style.borderBottomColor = newColor;
+      const t = now();
+      if(t - lastTapTime < 1200){
+        streak++;
       } else {
-        el.style.background = newColor;
+        streak = 1;
+      }
+      lastTapTime = t;
+      streakEl.textContent = String(streak);
+
+      spawnConfetti(x,y);
+
+      // streak milestones
+      if(streak === 5) { showToast("NICE!"); if(settings.sound) rewardChord(); }
+      if(streak === 10){ showToast("WOW!!"); if(settings.sound) rewardChord(); }
+      if(streak === 20){ showToast("SUPER!!"); if(settings.sound) rewardChord(); }
+
+      if(label) speak(label);
+
+      // party extra
+      if(party){
+        spawnSparkleRing(x,y);
+        if(settings.sound) tone(pick([523,587,659,784,880]), 0.18, 0.16, "sine");
       }
     }
 
-    function nextShape() {
-      current = (current + 1) % 3;
-      makeMainShape(current);
-    }
+    // ---------- Mode: Pop Bubbles ----------
+    const popBubbles = (() => {
+      const bubbles = [];
+      let spawnEvery = 520;
+      let lastSpawn = 0;
 
-    // Bubble mode (extra tappable floating circles)
-    function spawnBubble() {
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
+      function reset(){
+        bubbles.length = 0;
+        lastSpawn = now();
+      }
 
-      const colors = rand(palettes);
-      bubble.style.background = rand(colors);
+      function spawn(){
+        const big = settings.bigTargets ? 1.25 : 1.0;
+        const r = rand(42, 86) * big;
+        const x = rand(r+10, W-r-10);
+        const y = rand(H*0.25, H-r-10);
+        const c = pick(COLOR_WORDS);
+        bubbles.push({
+          x,y,r,
+          vx: rand(-0.9, 0.9) * (settings.motion ? 1 : 0),
+          vy: rand(-0.45, 0.45) * (settings.motion ? 1 : 0),
+          wob: rand(0, 1000),
+          color: c.hex,
+          word: c.name,
+          shine: rand(0.2,0.7),
+          life: randi(600, 1400),
+        });
+      }
 
+      function update(dt){
+        // spawn
+        const interval = party ? spawnEvery * 0.55 : spawnEvery;
+        if(now() - lastSpawn > interval){
+          lastSpawn = now();
+          if(bubbles.length < (party ? 14 : 10)) spawn();
+        }
+
+        // move & bounce
+        for(let i=bubbles.length-1;i>=0;i--){
+          const b = bubbles[i];
+          b.life -= dt;
+          b.x += b.vx * dt * 0.06;
+          b.y += b.vy * dt * 0.06;
+
+          if(settings.motion){
+            b.wob += dt * 0.006;
+            b.y += Math.sin(b.wob) * 0.22;
+          }
+
+          if(b.x < b.r+8){ b.x = b.r+8; b.vx *= -1; }
+          if(b.x > W-b.r-8){ b.x = W-b.r-8; b.vx *= -1; }
+          if(b.y < H*0.18){ b.y = H*0.18; b.vy *= -1; }
+          if(b.y > H-b.r-8){ b.y = H-b.r-8; b.vy *= -1; }
+
+          if(b.life <= 0) bubbles.splice(i,1);
+        }
+      }
+
+      function draw(){
+        // background bubbles
+        for(const b of bubbles){
+          // bubble body
+          const g = ctx.createRadialGradient(b.x-b.r*0.25, b.y-b.r*0.25, b.r*0.2, b.x, b.y, b.r);
+          g.addColorStop(0, "rgba(255,255,255,.50)");
+          g.addColorStop(0.25, b.color);
+          g.addColorStop(1, "rgba(255,255,255,.08)");
+
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+          ctx.fill();
+
+          // shine
+          ctx.fillStyle = `rgba(255,255,255,${0.22 + b.shine*0.25})`;
+          ctx.beginPath();
+          ctx.ellipse(b.x-b.r*0.25, b.y-b.r*0.25, b.r*0.35, b.r*0.22, -0.6, 0, Math.PI*2);
+          ctx.fill();
+
+          // word
+          ctx.fillStyle = "rgba(255,255,255,.92)";
+          ctx.font = `${Math.max(18, b.r*0.30)}px system-ui`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.shadowColor = "rgba(0,0,0,.35)";
+          ctx.shadowBlur = 16;
+          ctx.fillText("POP!", b.x, b.y);
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      function tap(x,y){
+        for(let i=bubbles.length-1;i>=0;i--){
+          const b = bubbles[i];
+          const dx = x-b.x, dy = y-b.y;
+          if(dx*dx + dy*dy <= b.r*b.r){
+            bubbles.splice(i,1);
+            popSound();
+            addTapReward(x,y, b.word);
+            return true;
+          }
+        }
+        return false;
+      }
+
+      return {
+        id:"bubbles",
+        name:"Pop Bubbles",
+        hint:"tap the bubbles!",
+        sub:"Bubbles + confetti + streaks",
+        reset, update, draw, tap
+      };
+    })();
+
+    // ---------- Mode: Chase the Star ----------
+    const chaseStar = (() => {
+      let star = null;
+      let targetTimer = 0;
+
+      function reset(){
+        star = makeStar();
+        targetTimer = 0;
+      }
+
+      function makeStar(){
+        const big = settings.bigTargets ? 1.2 : 1.0;
+        const r = rand(42, 78) * big;
+        const c = pick(COLOR_WORDS);
+        return {
+          x: rand(r+14, W-r-14),
+          y: rand(H*0.25, H-r-14),
+          r,
+          vx: rand(-2.2, 2.2) * (party ? 1.2 : 1.0) * (settings.motion ? 1 : 0),
+          vy: rand(-2.0, 2.0) * (party ? 1.2 : 1.0) * (settings.motion ? 1 : 0),
+          color: c.hex,
+          word: c.name,
+          spin: rand(0, Math.PI*2),
+          vspin: rand(-0.05, 0.05) * (settings.motion ? 1 : 0),
+          emoji: pick(["⭐️","🌟","✨"]),
+        };
+      }
+
+      function update(dt){
+        targetTimer += dt;
+        if(targetTimer > (party ? 5500 : 8000)){
+          targetTimer = 0;
+          star = makeStar();
+        }
+        if(!star) return;
+
+        star.x += star.vx * dt * 0.06;
+        star.y += star.vy * dt * 0.06;
+        star.spin += star.vspin * dt;
+
+        if(star.x < star.r+10){ star.x = star.r+10; star.vx *= -1; }
+        if(star.x > W-star.r-10){ star.x = W-star.r-10; star.vx *= -1; }
+        if(star.y < H*0.20){ star.y = H*0.20; star.vy *= -1; }
+        if(star.y > H-star.r-10){ star.y = H-star.r-10; star.vy *= -1; }
+      }
+
+      function draw(){
+        if(!star) return;
+
+        // halo
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = star.color;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r*1.25, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+
+        // body
+        ctx.save();
+        ctx.translate(star.x, star.y);
+        ctx.rotate(star.spin);
+
+        ctx.fillStyle = star.color;
+        ctx.beginPath();
+        const spikes = 5;
+        const outer = star.r;
+        const inner = star.r * 0.48;
+        for(let i=0;i<spikes*2;i++){
+          const a = (Math.PI / spikes) * i;
+          const rr = (i % 2 === 0) ? outer : inner;
+          ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // emoji + text
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `${Math.max(22, star.r*0.40)}px system-ui`;
+        ctx.shadowColor = "rgba(0,0,0,.35)";
+        ctx.shadowBlur = 16;
+        ctx.fillText(star.emoji, 0, -star.r*0.08);
+        ctx.shadowBlur = 0;
+
+        ctx.font = `${Math.max(16, star.r*0.22)}px system-ui`;
+        ctx.fillText("TAP!", 0, star.r*0.45);
+
+        ctx.restore();
+      }
+
+      function tap(x,y){
+        if(!star) return false;
+        const dx = x-star.x, dy = y-star.y;
+        if(dx*dx + dy*dy <= (star.r*1.05)*(star.r*1.05)){
+          popSound();
+          addTapReward(x,y, `${star.word} star`);
+          showToast("GOT IT!");
+          // warp to new place
+          star = makeStar();
+          targetTimer = 0;
+          // fun extra
+          if(settings.sound) tone(pick([659,784,880,988]), 0.16, 0.18, "sine");
+          return true;
+        }
+        return false;
+      }
+
+      return {
+        id:"star",
+        name:"Chase Star",
+        hint:"catch the moving star!",
+        sub:"Fast target + big reward",
+        reset, update, draw, tap
+      };
+    })();
+
+    // ---------- Mode: Animal Tap ----------
+    const animalTap = (() => {
+      const pads = [];
+      let prompt = null; // the animal to find
+
+      function reset(){
+        pads.length = 0;
+        const count = party ? 6 : 4;
+
+        // pick distinct animals
+        const chosen = [];
+        while(chosen.length < count){
+          const a = pick(ANIMALS);
+          if(!chosen.some(x => x.word === a.word)) chosen.push(a);
+        }
+
+        // layout grid-ish
+        const margin = 22;
+        const cols = count === 6 ? 3 : 2;
+        const rows = Math.ceil(count / cols);
+
+        const cellW = (W - margin*2) / cols;
+        const cellH = (H - margin*2 - H*0.18) / rows;
+
+        const big = settings.bigTargets ? 1.1 : 1.0;
+
+        for(let i=0;i<count;i++){
+          const c = pick(COLOR_WORDS);
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const cx = margin + col*cellW + cellW/2;
+          const cy = H*0.20 + margin + row*cellH + cellH/2;
+          const r = Math.min(cellW, cellH) * 0.28 * big;
+
+          pads.push({
+            x: cx,
+            y: cy,
+            r,
+            animal: chosen[i],
+            color: c.hex,
+            pulse: rand(0, 1000),
+          });
+        }
+
+        prompt = pick(pads).animal;
+        subtitleEl.textContent = `Find: ${prompt.word} ${prompt.emoji}`;
+        if(settings.speak) speak(prompt.word);
+      }
+
+      function update(dt){
+        for(const p of pads){
+          p.pulse += dt * 0.006;
+        }
+      }
+
+      function draw(){
+        // prompt text
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.font = `${Math.max(22, W*0.03)}px system-ui`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.shadowColor = "rgba(0,0,0,.35)";
+        ctx.shadowBlur = 18;
+        ctx.fillText(`FIND: ${prompt.word} ${prompt.emoji}`, W/2, H*0.14);
+        ctx.restore();
+
+        // pads
+        for(const p of pads){
+          const wob = settings.motion ? (Math.sin(p.pulse) * 0.06 + 1.0) : 1.0;
+
+          // pad
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.scale(wob, wob);
+
+          const g = ctx.createRadialGradient(-p.r*0.2, -p.r*0.2, p.r*0.2, 0,0, p.r*1.25);
+          g.addColorStop(0, "rgba(255,255,255,.55)");
+          g.addColorStop(0.25, p.color);
+          g.addColorStop(1, "rgba(255,255,255,.08)");
+
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(0,0,p.r,0,Math.PI*2);
+          ctx.fill();
+
+          // emoji
+          ctx.fillStyle = "rgba(255,255,255,.95)";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = `${Math.max(28, p.r*0.75)}px system-ui`;
+          ctx.shadowColor = "rgba(0,0,0,.35)";
+          ctx.shadowBlur = 16;
+          ctx.fillText(p.animal.emoji, 0, -p.r*0.10);
+          ctx.shadowBlur = 0;
+
+          // label
+          ctx.font = `${Math.max(14, p.r*0.24)}px system-ui`;
+          ctx.fillText("TAP!", 0, p.r*0.55);
+
+          ctx.restore();
+        }
+      }
+
+      function tap(x,y){
+        for(const p of pads){
+          const dx = x-p.x, dy = y-p.y;
+          if(dx*dx + dy*dy <= p.r*p.r){
+            if(p.animal.word === prompt.word){
+              popSound();
+              addTapReward(x,y, p.animal.word);
+              showToast("YES!!");
+              if(settings.sound) rewardChord();
+              // new round
+              reset();
+            } else {
+              // gentle "nope" feedback
+              if(settings.sound){
+                tone(220, 0.12, 0.12, "sine");
+                setTimeout(()=>tone(196, 0.14, 0.10, "sine"), 60);
+              }
+              showToast("TRY AGAIN!");
+              speak("Try again");
+              spawnSparkleRing(x,y);
+              streak = 0;
+              streakEl.textContent = String(streak);
+            }
+            return true;
+          }
+        }
+        return false;
+      }
+
+      return {
+        id:"animals",
+        name:"Animal Tap",
+        hint:"tap the animal we ask for!",
+        sub:"Find the animal (big dopamine)",
+        reset, update, draw, tap
+      };
+    })();
+
+    // ---------- Mode: Music Pad ----------
+    const musicPad = (() => {
+      const keys = [];
+      const scale = [262, 294, 330, 392, 440, 523, 587, 659]; // C D E G A C D E
+      const names = ["DO","RE","MI","SO","LA","DO","RE","MI"];
+
+      function reset(){
+        keys.length = 0;
+        const cols = 4;
+        const rows = 2;
+        const margin = 18;
+        const top = H*0.22;
+        const availH = H - top - margin;
+        const cellW = (W - margin*2) / cols;
+        const cellH = (availH - margin) / rows;
+
+        let k = 0;
+        for(let r=0;r<rows;r++){
+          for(let c=0;c<cols;c++){
+            const cw = cellW - 10;
+            const ch = cellH - 10;
+            const x = margin + c*cellW + cellW/2;
+            const y = top + r*cellH + cellH/2;
+            const col = pick(COLOR_WORDS);
+            keys.push({
+              x,y,w:cw,h:ch,
+              color: col.hex,
+              word: col.name,
+              freq: scale[k],
+              name: names[k],
+              down: 0,
+              emoji: pick(["🎵","🎶","✨","🌈"])
+            });
+            k++;
+          }
+        }
+
+        subtitleEl.textContent = "Tap the music tiles!";
+      }
+
+      function update(dt){
+        for(const key of keys){
+          key.down = Math.max(0, key.down - dt*0.02);
+        }
+      }
+
+      function draw(){
+        // title
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.font = `${Math.max(22, W*0.03)}px system-ui`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.shadowColor = "rgba(0,0,0,.35)";
+        ctx.shadowBlur = 18;
+        ctx.fillText("MUSIC PAD", W/2, H*0.14);
+        ctx.restore();
+
+        // tiles
+        for(const key of keys){
+          const press = 1 - key.down;
+          const pad = settings.bigTargets ? 1.06 : 1.0;
+
+          const x = key.x - key.w*0.5*pad;
+          const y = key.y - key.h*0.5*pad;
+          const w = key.w*pad;
+          const h = key.h*pad;
+
+          const rr = 22;
+
+          ctx.save();
+          ctx.globalAlpha = 0.95;
+
+          // shadow-ish
+          ctx.fillStyle = "rgba(0,0,0,.18)";
+          roundRect(x+2, y+6, w, h, rr);
+          ctx.fill();
+
+          // main
+          const g = ctx.createLinearGradient(x, y, x+w, y+h);
+          g.addColorStop(0, "rgba(255,255,255,.30)");
+          g.addColorStop(0.18, key.color);
+          g.addColorStop(1, "rgba(255,255,255,.08)");
+
+          ctx.translate(key.x, key.y);
+          ctx.scale(press, press);
+          ctx.translate(-key.x, -key.y);
+
+          ctx.fillStyle = g;
+          roundRect(x, y, w, h, rr);
+          ctx.fill();
+
+          // text
+          ctx.fillStyle = "rgba(255,255,255,.95)";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.shadowColor = "rgba(0,0,0,.35)";
+          ctx.shadowBlur = 16;
+
+          ctx.font = `${Math.max(26, h*0.22)}px system-ui`;
+          ctx.fillText(key.emoji, key.x, key.y - h*0.12);
+
+          ctx.font = `${Math.max(18, h*0.16)}px system-ui`;
+          ctx.fillText(key.name, key.x, key.y + h*0.14);
+
+          ctx.shadowBlur = 0;
+          ctx.restore();
+        }
+      }
+
+      function tap(x,y){
+        for(const key of keys){
+          const pad = settings.bigTargets ? 1.06 : 1.0;
+          const left = key.x - key.w*0.5*pad;
+          const right = key.x + key.w*0.5*pad;
+          const top = key.y - key.h*0.5*pad;
+          const bottom = key.y + key.h*0.5*pad;
+
+          if(x>=left && x<=right && y>=top && y<=bottom){
+            key.down = 1;
+            if(settings.sound) tone(key.freq, 0.28, 0.16, "sine");
+            addTapReward(x,y, key.word);
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function roundRect(x, y, w, h, r){
+        ctx.beginPath();
+        ctx.moveTo(x+r,y);
+        ctx.arcTo(x+w,y, x+w,y+h, r);
+        ctx.arcTo(x+w,y+h, x,y+h, r);
+        ctx.arcTo(x,y+h, x,y, r);
+        ctx.arcTo(x,y, x+w,y, r);
+        ctx.closePath();
+      }
+
+      return {
+        id:"music",
+        name:"Music Pad",
+        hint:"tap tiles to play notes!",
+        sub:"Piano-ish tiles + confetti",
+        reset, update, draw, tap
+      };
+    })();
+
+    // ---------- Register modes ----------
+    MODES.push(popBubbles, chaseStar, animalTap, musicPad);
+    for(const m of MODES) makeModeButton(m);
+
+    // ---------- Resize ----------
+    function resize(){
       const rect = stage.getBoundingClientRect();
-      const size = 120;
-      const x = randInt(10, Math.max(10, rect.width - size - 10));
-      const y = randInt(60, Math.max(60, rect.height - size - 10));
-      bubble.style.left = `${x}px`;
-      bubble.style.top = `${y}px`;
+      DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      W = Math.floor(rect.width * DPR);
+      H = Math.floor(rect.height * DPR);
 
-      bubble.textContent = "POP!";
-      bubble.addEventListener("pointerdown", (e) => {
-        e.preventDefault?.();
-        incrementTaps();
-        playTone();
+      canvas.width = W;
+      canvas.height = H;
 
-        const r = stage.getBoundingClientRect();
-        confettiPop(e.clientX - r.left, e.clientY - r.top);
+      // reset current mode because layout depends on size
+      if(mode) mode.reset();
+    }
 
-        bubble.remove();
+    window.addEventListener("resize", resize);
+
+    // ---------- Main loop ----------
+    let last = now();
+    function loop(){
+      const t = now();
+      const dt = clamp(t - last, 0, 40); // ms
+      last = t;
+
+      // auto switch modes
+      if(settings.autoSwitch){
+        if(t - lastAutoSwitch > AUTO_MS){
+          lastAutoSwitch = t;
+          const idx = MODES.findIndex(m => m.id === mode.id);
+          const next = MODES[(idx + 1) % MODES.length];
+          setMode(next.id);
+        }
+      }
+
+      // background gradient + subtle stars
+      drawBackground(t);
+
+      if(mode){
+        mode.update(dt);
+        mode.draw();
+      }
+
+      stepParticles();
+      drawParticles();
+
+      requestAnimationFrame(loop);
+    }
+
+    function drawBackground(t){
+      // base
+      ctx.clearRect(0,0,W,H);
+
+      // moving glow dots
+      const k = party ? 1.0 : 0.7;
+      const a = t * 0.00025;
+      const g = ctx.createRadialGradient(
+        W*(0.5+0.18*Math.sin(a*1.2)),
+        H*(0.35+0.18*Math.cos(a*1.1)),
+        W*0.05,
+        W*0.5,
+        H*0.55,
+        Math.max(W,H)*0.9
+      );
+      g.addColorStop(0, `rgba(120,200,255,${0.10*k})`);
+      g.addColorStop(0.4, `rgba(255,140,220,${0.07*k})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,W,H);
+
+      // sparkly starfield
+      if(settings.motion){
+        ctx.save();
+        ctx.globalAlpha = party ? 0.22 : 0.14;
+        for(let i=0;i<22;i++){
+          const x = (W * (i/22)) + (Math.sin(a*2+i)*W*0.03);
+          const y = (H * (0.15 + (i%7)/8)) + (Math.cos(a*2.2+i)*H*0.02);
+          ctx.fillStyle = "rgba(255,255,255,.9)";
+          ctx.beginPath();
+          ctx.arc(x,y, (i%3+1)*DPR, 0, Math.PI*2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    // ---------- Input ----------
+    function onPointerDown(e){
+      e.preventDefault?.();
+      const p = getPointerPos(e);
+      const hit = mode ? mode.tap(p.x, p.y) : false;
+      if(!hit){
+        // tapping background is still rewarding
+        if(settings.sound) tone(pick([262,294,330,392,440,523]), 0.14, 0.10, "sine");
+        addTapReward(p.x,p.y, null);
+      }
+    }
+    canvas.addEventListener("pointerdown", onPointerDown, { passive:false });
+
+    // ---------- Party mode ----------
+    function setParty(on){
+      party = !!on;
+      partyBtn.textContent = `Party: ${party ? "On" : "Off"}`;
+      partyGlow.classList.toggle("on", party);
+      if(party){
+        showToast("PARTY!!!");
+        if(settings.sound) rewardChord();
+      } else {
+        showToast("CHILL");
+      }
+    }
+    partyBtn.addEventListener("click", () => setParty(!party));
+
+    // ---------- Parent gate (hold 3s) ----------
+    let holdTimer = null;
+    let holdStart = 0;
+
+    function openModal(){
+      modalWrap.classList.add("on");
+      applySettingsToUI();
+    }
+    function closeModal(){
+      modalWrap.classList.remove("on");
+      updateSettingsFromUI();
+      // mode layout might change
+      if(mode) mode.reset();
+    }
+
+    function startHold(){
+      holdStart = Date.now();
+      parentBtn.textContent = "Hold…";
+      holdTimer = setInterval(() => {
+        const elapsed = Date.now() - holdStart;
+        const sec = Math.ceil((3000 - elapsed) / 1000);
+        if(elapsed >= 3000){
+          clearInterval(holdTimer);
+          holdTimer = null;
+          parentBtn.textContent = "Parent";
+          openModal();
+        } else {
+          parentBtn.textContent = `Hold ${sec}…`;
+        }
+      }, 120);
+    }
+    function cancelHold(){
+      if(holdTimer){
+        clearInterval(holdTimer);
+        holdTimer = null;
+      }
+      parentBtn.textContent = "Parent";
+    }
+
+    parentBtn.addEventListener("pointerdown", (e)=>{ e.preventDefault(); startHold(); }, {passive:false});
+    parentBtn.addEventListener("pointerup", cancelHold);
+    parentBtn.addEventListener("pointercancel", cancelHold);
+    parentBtn.addEventListener("pointerleave", cancelHold);
+
+    closeBtn.addEventListener("click", closeModal);
+    modalWrap.addEventListener("click", (e)=>{ if(e.target === modalWrap) closeModal(); });
+
+    resetBtn.addEventListener("click", ()=>{
+      taps = 0; streak = 0;
+      tapsEl.textContent = "0";
+      streakEl.textContent = "0";
+      showToast("RESET!");
+      if(settings.sound) tone(262, 0.16, 0.14, "sine");
+    });
+
+    // update settings live
+    for(const el of [optSound,optSpeak,optBig,optMotion,optAuto]){
+      el.addEventListener("change", ()=>{
+        updateSettingsFromUI();
+        if(mode) mode.reset();
       });
-
-      stage.appendChild(bubble);
-
-      // Auto-remove after a bit so it doesn't clutter
-      setTimeout(() => bubble.remove(), 5500);
     }
 
-    function setBubbleMode(on) {
-      if (bubbleTimer) {
-        clearInterval(bubbleTimer);
-        bubbleTimer = null;
-      }
-      stage.querySelectorAll(".bubble").forEach(b => b.remove());
+    // ---------- Init ----------
+    loadSettings();
+    applySettingsToUI();
+    resize();
+    setParty(false);
+    setMode(MODES[0].id);
+    requestAnimationFrame(loop);
 
-      if (on) {
-        bubbleTimer = setInterval(() => {
-          // keep a small number of bubbles
-          const count = stage.querySelectorAll(".bubble").length;
-          if (count < 5) spawnBubble();
-        }, 900);
-      }
-    }
+    // iOS audio unlock: first interaction resumes audio
+    window.addEventListener("pointerdown", () => { ensureAudio(); }, { once:true });
 
-    // Controls
-    changeBtn.addEventListener("click", nextShape);
-    bubbleToggle.addEventListener("change", () => setBubbleMode(bubbleToggle.checked));
-
-    // First render
-    makeMainShape(current);
-
-    // Make sure tapping empty stage also counts (useful for babies)
-    stage.addEventListener("pointerdown", (e) => {
-      const targetIsShape = e.target.closest(".shape") || e.target.closest(".triangle") || e.target.closest(".bubble");
-      if (!targetIsShape) {
-        // Tap background = still fun
-        incrementTaps();
-        playTone();
-
-        const r = stage.getBoundingClientRect();
-        confettiPop(e.clientX - r.left, e.clientY - r.top);
-      }
-    }, { passive: false });
   </script>
 </body>
 </html>
