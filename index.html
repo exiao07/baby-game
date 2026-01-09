@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Baby Tap Game</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(255,255,255,0.10);
+      --panel2: rgba(255,255,255,0.14);
+      --text: rgba(255,255,255,0.92);
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: radial-gradient(circle at 20% 10%, #1b2a6b 0%, var(--bg) 45%, #050610 100%);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      overscroll-behavior: none;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .wrap {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: var(--panel);
+      backdrop-filter: blur(6px);
+    }
+
+    .title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .title h1 {
+      font-size: 16px;
+      margin: 0;
+      letter-spacing: 0.3px;
+      font-weight: 700;
+    }
+    .title .sub {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button, .toggle {
+      border: 0;
+      border-radius: 14px;
+      background: var(--panel2);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 650;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    button:active { transform: scale(0.98); }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+    }
+    .toggle input {
+      width: 22px;
+      height: 22px;
+      accent-color: #7cf;
+    }
+
+    .stage {
+      position: relative;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+
+    /* Big tappable shape */
+    .shape {
+      width: min(72vmin, 520px);
+      height: min(72vmin, 520px);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      filter: drop-shadow(0 18px 40px rgba(0,0,0,0.35));
+      transform: translateZ(0);
+    }
+
+    .shape:focus-visible {
+      outline: 4px solid rgba(255,255,255,0.7);
+      outline-offset: 10px;
+      border-radius: 28px;
+    }
+
+    .label {
+      font-size: clamp(22px, 5vmin, 42px);
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    }
+
+    /* Variants */
+    .circle { border-radius: 50%; }
+    .square { border-radius: 18%; }
+    .triangle {
+      width: 0;
+      height: 0;
+      border-left: min(34vmin, 240px) solid transparent;
+      border-right: min(34vmin, 240px) solid transparent;
+      border-bottom: min(62vmin, 430px) solid #ff5aa5;
+      filter: drop-shadow(0 18px 40px rgba(0,0,0,0.35));
+      cursor: pointer;
+      position: relative;
+    }
+    .triangle .label {
+      position: absolute;
+      left: 50%;
+      top: 62%;
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+    }
+
+    /* Wiggle animation */
+    @keyframes wiggle {
+      0% { transform: scale(1) rotate(0deg); }
+      20% { transform: scale(1.03) rotate(-3deg); }
+      40% { transform: scale(1.05) rotate(3deg); }
+      60% { transform: scale(1.03) rotate(-2deg); }
+      80% { transform: scale(1.02) rotate(2deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    .wiggle { animation: wiggle 420ms ease-out; }
+
+    /* Floating “pop” particles */
+    .pop {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0.95;
+      animation: floatUp 700ms ease-out forwards;
+      filter: blur(0px);
+    }
+    @keyframes floatUp {
+      from { transform: translateY(0) scale(1); opacity: 1; }
+      to { transform: translateY(-90px) scale(0.6); opacity: 0; }
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: var(--panel);
+      backdrop-filter: blur(6px);
+      font-size: 14px;
+    }
+    .score {
+      font-weight: 750;
+      letter-spacing: 0.3px;
+    }
+
+    /* Bubble mode mini shapes */
+    .bubble {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 22px;
+      color: rgba(255,255,255,0.95);
+      text-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      cursor: pointer;
+      filter: drop-shadow(0 14px 24px rgba(0,0,0,0.35));
+      animation: drift 6s linear infinite;
+    }
+    @keyframes drift {
+      from { transform: translateY(0); }
+      to { transform: translateY(-28px); }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Tap the Big Shape</h1>
+        <div class="sub">Big targets • gentle sounds • baby-friendly</div>
+      </div>
+
+      <div class="controls">
+        <button id="changeBtn" aria-label="Change shape">Change</button>
+        <label class="toggle" aria-label="Toggle bubble mode">
+          <input id="bubbleToggle" type="checkbox" />
+          Bubble mode
+        </label>
+      </div>
+    </header>
+
+    <main class="stage" id="stage" aria-label="Game area">
+      <!-- Main shape gets injected here -->
+    </main>
+
+    <footer>
+      <div class="score">Taps: <span id="taps">0</span></div>
+      <div style="opacity:.85">Tip: tap anywhere — works with touch.</div>
+    </footer>
+  </div>
+
+  <script>
+    // ----- Simple baby game: big shapes + gentle tones -----
+
+    const stage = document.getElementById("stage");
+    const tapsEl = document.getElementById("taps");
+    const changeBtn = document.getElementById("changeBtn");
+    const bubbleToggle = document.getElementById("bubbleToggle");
+
+    let taps = 0;
+    let current = 0; // 0 circle, 1 square, 2 triangle
+    let audioCtx = null;
+    let bubbleTimer = null;
+
+    const palettes = [
+      ["#ff5aa5", "#ff9f43", "#ffee58", "#7cff6b", "#4dd6ff", "#a78bfa"],
+      ["#ff6b6b", "#ffd93d", "#6bcBef", "#6bff95", "#b388ff", "#ff8fab"],
+    ];
+
+    function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+    function ensureAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      // iOS sometimes needs resume on user gesture
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    }
+
+    function playTone() {
+      ensureAudio();
+      const now = audioCtx.currentTime;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      // Soft, happy notes (pentatonic-ish)
+      const freqs = [262, 294, 330, 392, 440, 523]; // C D E G A C
+      osc.frequency.value = rand(freqs);
+      osc.type = "sine";
+
+      // Gentle envelope (avoid harsh clicks)
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.4);
+    }
+
+    function confettiPop(x, y) {
+      const colors = rand(palettes);
+      for (let i = 0; i < 10; i++) {
+        const p = document.createElement("div");
+        p.className = "pop";
+        p.style.left = `${x + randInt(-30, 30)}px`;
+        p.style.top  = `${y + randInt(-30, 30)}px`;
+        p.style.background = rand(colors);
+        p.style.width = `${randInt(14, 28)}px`;
+        p.style.height = p.style.width;
+        stage.appendChild(p);
+        setTimeout(() => p.remove(), 750);
+      }
+    }
+
+    function incrementTaps() {
+      taps++;
+      tapsEl.textContent = String(taps);
+    }
+
+    function makeMainShape(kind) {
+      stage.querySelectorAll(".shape, .triangle").forEach(n => n.remove());
+
+      const colors = rand(palettes);
+      const color = rand(colors);
+
+      if (kind === 2) {
+        const tri = document.createElement("div");
+        tri.className = "triangle";
+        tri.tabIndex = 0;
+        tri.setAttribute("role", "button");
+        tri.setAttribute("aria-label", "Triangle shape");
+
+        const label = document.createElement("div");
+        label.className = "label";
+        label.textContent = "TAP!";
+        tri.appendChild(label);
+
+        tri.style.borderBottomColor = color;
+
+        tri.addEventListener("pointerdown", (e) => onTap(e, tri));
+        tri.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") onTap(e, tri);
+        });
+
+        stage.appendChild(tri);
+        return;
+      }
+
+      const div = document.createElement("div");
+      div.className = `shape ${kind === 0 ? "circle" : "square"}`;
+      div.tabIndex = 0;
+      div.setAttribute("role", "button");
+      div.setAttribute("aria-label", kind === 0 ? "Circle shape" : "Square shape");
+
+      div.style.background = color;
+
+      const label = document.createElement("div");
+      label.className = "label";
+      label.textContent = "TAP!";
+      div.appendChild(label);
+
+      div.addEventListener("pointerdown", (e) => onTap(e, div));
+      div.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") onTap(e, div);
+      });
+
+      stage.appendChild(div);
+    }
+
+    function onTap(e, el) {
+      // Prevent accidental scrolling on mobile
+      e.preventDefault?.();
+
+      incrementTaps();
+      playTone();
+
+      // wiggle
+      el.classList.remove("wiggle");
+      void el.offsetWidth; // restart animation
+      el.classList.add("wiggle");
+
+      const rect = stage.getBoundingClientRect();
+      const x = (e.clientX ?? (rect.left + rect.width / 2)) - rect.left;
+      const y = (e.clientY ?? (rect.top + rect.height / 2)) - rect.top;
+
+      confettiPop(x, y);
+
+      // Change to a new random color quickly
+      const colors = rand(palettes);
+      const newColor = rand(colors);
+
+      if (el.classList.contains("triangle")) {
+        el.style.borderBottomColor = newColor;
+      } else {
+        el.style.background = newColor;
+      }
+    }
+
+    function nextShape() {
+      current = (current + 1) % 3;
+      makeMainShape(current);
+    }
+
+    // Bubble mode (extra tappable floating circles)
+    function spawnBubble() {
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+
+      const colors = rand(palettes);
+      bubble.style.background = rand(colors);
+
+      const rect = stage.getBoundingClientRect();
+      const size = 120;
+      const x = randInt(10, Math.max(10, rect.width - size - 10));
+      const y = randInt(60, Math.max(60, rect.height - size - 10));
+      bubble.style.left = `${x}px`;
+      bubble.style.top = `${y}px`;
+
+      bubble.textContent = "POP!";
+      bubble.addEventListener("pointerdown", (e) => {
+        e.preventDefault?.();
+        incrementTaps();
+        playTone();
+
+        const r = stage.getBoundingClientRect();
+        confettiPop(e.clientX - r.left, e.clientY - r.top);
+
+        bubble.remove();
+      });
+
+      stage.appendChild(bubble);
+
+      // Auto-remove after a bit so it doesn't clutter
+      setTimeout(() => bubble.remove(), 5500);
+    }
+
+    function setBubbleMode(on) {
+      if (bubbleTimer) {
+        clearInterval(bubbleTimer);
+        bubbleTimer = null;
+      }
+      stage.querySelectorAll(".bubble").forEach(b => b.remove());
+
+      if (on) {
+        bubbleTimer = setInterval(() => {
+          // keep a small number of bubbles
+          const count = stage.querySelectorAll(".bubble").length;
+          if (count < 5) spawnBubble();
+        }, 900);
+      }
+    }
+
+    // Controls
+    changeBtn.addEventListener("click", nextShape);
+    bubbleToggle.addEventListener("change", () => setBubbleMode(bubbleToggle.checked));
+
+    // First render
+    makeMainShape(current);
+
+    // Make sure tapping empty stage also counts (useful for babies)
+    stage.addEventListener("pointerdown", (e) => {
+      const targetIsShape = e.target.closest(".shape") || e.target.closest(".triangle") || e.target.closest(".bubble");
+      if (!targetIsShape) {
+        // Tap background = still fun
+        incrementTaps();
+        playTone();
+
+        const r = stage.getBoundingClientRect();
+        confettiPop(e.clientX - r.left, e.clientY - r.top);
+      }
+    }, { passive: false });
+  </script>
+</body>
+</html>
